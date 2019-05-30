@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# file
+build-Server-Desktop_Qt_5_12_1_GCC_64bit-Debug/
+Server.pro.user
