@@ -11,12 +11,13 @@ int main()
     DataBase base;
     base.Creatable();
     //base.InsertValue();
-    struct package mes;
+//    struct package mes;
     base.Show();
-    strcpy( mes.fromname, "xiaomin" );
-    strcpy( mes.msg, "666" );
-    mes.identity = 1;
-    base.InsertValue( mes,99 );
+//    strcpy( mes.fromname, "xiaomin" );
+//    strcpy( mes.msg, "666" );
+//    mes.identity = 1;
+//    base.InsertValue( mes,99 );
+    base.DeleteValue( 1 );
     base.Show();
 
     return 0;

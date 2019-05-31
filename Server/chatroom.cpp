@@ -102,9 +102,15 @@ void *handleClient( void *arg ) {
 }
 
 void registration( int clientSock, struct package &message ) {
-    cout << message.fromname << " 申请注册" << endl;
+    cout << message.fromname << " 请求注册" << endl;
+    DataBase database;
+    database.InsertValue( message, clientSock );
 }
 
-void login() {
-    
+void login( int clientSock, struct package &message ) {
+    cout << message.fromname << " 请求登录" << endl;
+    DataBase database;
+    if( database.CheckValue( message, clientSock ) ) {
+        
+    }
 }

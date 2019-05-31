@@ -19,12 +19,13 @@
 using namespace std;
 
 struct package {
+    unsigned int ID;                 //账号ＩＤ
     char msg[1024];         // 消息内容
     int  cmd;               // 消息类型
     char filename[50];      // 保存文件名
     char toname[20];        // 接收者姓名
     char fromname[20];      // 发送者姓名
-    int  identity;               // 用户状态（0：管理员、1：普通用户、2：被禁言）
+    int  identity;          // 用户状态（0：管理员、1：普通用户、2：被禁言）
 };
 
 class Server {
@@ -33,7 +34,20 @@ private:
     struct sockaddr_in servaddr;
     socklen_t servlen;
     int sockfd;
-    pthread_t pid; 
+    pthread_t pid;
+    void UserTodo();
+    void QuitChatroom();
+    void Display();
+    void GroupChat();
+    void PrivateChat();
+    void ConveyFile();
+    void AcceptFile();
+    void RefuseFile();
+    void ChangePassWord();
+    void DeleteUser();
+    void Silent();
+    void RemoveSilent();
+    void KickOut();
 
 public:
     Server( uint16_t );

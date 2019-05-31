@@ -23,9 +23,10 @@ public:
     DataBase();
     ~DataBase();
     void Creatable();   
-    void ChangeValue( unsigned int id );
+    bool ChangeValue( unsigned int id, int );
     void InsertValue( struct package&, int );
     void DeleteValue( unsigned int id );
+    bool CheckValue( struct package&, int );
     void Show();
 
 };
