@@ -35,19 +35,27 @@ private:
     socklen_t servlen;
     int sockfd;
     pthread_t pid;
-    void UserTodo();
-    void QuitChatroom();
-    void Display();
-    void GroupChat();
-    void PrivateChat();
-    void ConveyFile();
-    void AcceptFile();
-    void RefuseFile();
-    void ChangePassWord();
-    void DeleteUser();
-    void Silent();
-    void RemoveSilent();
-    void KickOut();
+    
+    static void *handleClient( void *arg );
+    static void registration( int, struct package& );
+    static void login( int, struct package& );
+    
+    static void UserTodo( int );
+    static void QuitChatroom();
+    static void Display();
+    static void GroupChat();
+    static void PrivateChat();
+    static void ConveyFile();
+    static void AcceptFile();
+    static void ConveyFileChose();
+    static void ConveyFileComplete();
+    static void RefuseFile();
+    static void ChangePassWord();
+    static void DeleteUser();
+    static void Silent();
+    static void RemoveSilent();
+    static void KickOut();
+    
 
 public:
     Server( uint16_t );
@@ -60,7 +68,7 @@ public:
 
 };
 
-void *handleClient( void *arg );
-void registration( int, struct package& );
-void login();
+
+//void registration( int, struct package& );
+//void login();
 #endif // CHATROOM_H
