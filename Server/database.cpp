@@ -44,15 +44,15 @@ void DataBase::Creatable() {
     }
 }
 
-bool DataBase::ChangeValue( unsigned int id, int clientSock ) {
+bool DataBase::ChangeSocket( unsigned int id, int clientSock ) {
     SQLString str = "update usr.user set socket = " + to_string( clientSock ) + 
                         " where id = " + to_string( id );
     stmt = conn->createStatement();
     try {
         stmt->executeUpdate( str );
-        cout << "数据更新成功" << endl;
+        cout << "套接字状态更新成功" << endl;
     } catch (...) {
-        cout << "数据更新失败" << endl;
+        cout << "套接字状态更新失败" << endl;
         return false ;
     }
     return  true;
@@ -103,7 +103,7 @@ void DataBase::DeleteValue( unsigned int id ) {
     }
 }
 
-bool DataBase::CheckValue( struct package &message, int clientSock ) {
+bool DataBase::CheckMesg( int clientSock, struct package &message ) {
     SQLString str = "select socket, loginSta, identity \
         from usr.user where name = " + string( message.fromname ) + 
                                     "\" and id = " + to_string( message.ID ) + 
@@ -111,6 +111,7 @@ bool DataBase::CheckValue( struct package &message, int clientSock ) {
     stmt = conn->createStatement();
     try {
         res = stmt->executeQuery( str );
+        cout << "数据库校验成功" << endl;
         
     } catch (...) {
         cout << "数据库校验失败" << endl;
@@ -118,6 +119,14 @@ bool DataBase::CheckValue( struct package &message, int clientSock ) {
         write( clientSock, &message, sizeof ( message ) ); //回送客户端告诉执行结果
         return false;
     }
+    
+    return  true;
+}
+
+bool DataBase::LoginCheck( int clientSock, struct package& message ) {
+    
+    if( !CheckMesg( clientSock, message ) )
+        return  false;
     
     while ( res->next() ) {
         if( res->getInt( 5 ) == 1 ) {
@@ -141,13 +150,53 @@ bool DataBase::CheckValue( struct package &message, int clientSock ) {
     }
     
     //更新在线状态
-    if( this->ChangeValue( message.ID, clientSock ) )
+    if( this->ChangeSocket( message.ID, clientSock ) )
         cout << "状态修改成功" << endl;       
     else {
         cout << "状态修改失败" << endl;
         return false;
     }      
     return true;
+}
+
+bool DataBase::ChangeLoginSta( unsigned id, unsigned int status ) {
+    SQLString str = "update usr.user set loginSta = " + to_string( status ) + 
+                        " where id = " + to_string( id );
+    stmt = conn->createStatement();
+    try {
+        stmt->executeUpdate( str );
+        cout << "登录状态更新成功" << endl;
+    } catch (...) {
+        cout << "登录状态更新失败" << endl;
+        return false ;
+    }
+    return  true;
+}
+int DataBase::Calculated() {
+    const SQLString str = "select count( loginSta ) from usr.user where loginSta = 1;";
+    stmt = conn->createStatement();
+    try {
+         res = stmt->executeQuery( str );
+         cout << "查询当前在线人数成功" << endl;
+    } catch (...) {
+        cout << "查询当前在线人数失败" << endl;
+        return -1;
+    }
+    return res->getInt( 1 );
+}
+
+bool DataBase::ChangePassWord( struct package& message ) {
+    SQLString str = "update usr.user set password = \"" + string( message.msg ) + 
+                        "\"where id = " + to_string( message.ID );
+    stmt = conn->createStatement();
+    try {
+        stmt->executeUpdate( str );
+        cout << "登录密码更新成功" << endl;
+    } catch (...) {
+        cout << "登录密码更新失败" << endl;
+        return false ;
+    }
+    return  true;
 }
 
 void DataBase::Show() {

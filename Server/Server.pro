@@ -7,7 +7,8 @@ LIBS += -pthread
 SOURCES += \
         main.cpp \
     database.cpp \
-    chatroom.cpp
+    chatroom.cpp \
+    chatoption.cpp
 
 HEADERS += \
     database.h \

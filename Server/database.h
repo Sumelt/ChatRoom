@@ -23,10 +23,14 @@ public:
     DataBase();
     ~DataBase();
     void Creatable();   
-    bool ChangeValue( unsigned int id, int );
+    bool ChangeSocket( unsigned int id, int );
+    bool ChangeLoginSta( unsigned int id, unsigned int status );
+    bool ChangePassWord( struct package& );
     void InsertValue( struct package&, int );
     void DeleteValue( unsigned int id );
-    bool CheckValue( struct package&, int );
+    bool CheckMesg( int, struct package& );
+    bool LoginCheck( int, struct package& );
+    int Calculated();
     void Show();
 
 };

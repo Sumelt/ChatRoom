@@ -41,8 +41,8 @@ private:
     static void login( int, struct package& );
     
     static void UserTodo( int );
-    static void QuitChatroom();
-    static void Display();
+    static void QuitChatroom( int, struct package& );
+    static void Display( int );
     static void GroupChat();
     static void PrivateChat();
     static void ConveyFile();
@@ -50,7 +50,7 @@ private:
     static void ConveyFileChose();
     static void ConveyFileComplete();
     static void RefuseFile();
-    static void ChangePassWord();
+    static void ChangePassWord( int, struct package& );
     static void DeleteUser();
     static void Silent();
     static void RemoveSilent();

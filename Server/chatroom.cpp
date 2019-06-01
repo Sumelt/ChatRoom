@@ -116,7 +116,7 @@ void Server::UserTodo( int clientSock ) {
         }
         switch ( message.cmd ) {
             case 10 : 
-                QuitChatroom();
+                QuitChatroom( clientSock, message );
                 break;
             
             case 1 :
@@ -182,7 +182,7 @@ void Server::registration( int clientSock, struct package &message ) {
 void Server::login( int clientSock, struct package &message ) {
     cout << message.fromname << " 请求登录" << endl;
     DataBase database;
-    if( database.CheckValue( message, clientSock ) ) {
+    if( database.LoginCheck( clientSock, message ) ) {
         
     }
 }
