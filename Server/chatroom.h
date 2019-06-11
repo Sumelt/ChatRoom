@@ -14,12 +14,18 @@
 #include <sys/select.h>
 #include <errno.h>
 #include <pthread.h>
+#include <poll.h>
+#include <fcntl.h>
 
 #include "database.h"
 using namespace std;
 
+const int MAXSIZE = 1024;
+const int MAXUSERS = 10;
+const int MAXFD = 65535;
+
 struct package {
-    unsigned int ID;                 //账号ＩＤ
+    unsigned int ID;         //账号ＩＤ
     char msg[1024];         // 消息内容
     int  cmd;               // 消息类型
     char filename[50];      // 保存文件名
@@ -28,14 +34,58 @@ struct package {
     int  identity;          // 用户状态（0：管理员、1：普通用户、2：被禁言）
 };
 
+struct UserStruct {
+    struct sockaddr_in servaddr;
+    char SendMessage[ MAXSIZE];
+    char RecvMessage[ MAXSIZE ];
+    
+    UserStruct() {
+        memset( &servaddr, 0, sizeof ( servaddr ) );
+        memset( SendMessage, 0, MAXSIZE );
+        memset( RecvMessage, 0, MAXSIZE );
+    }
+    void copyAddress( struct sockaddr_in &addr ) {
+        servaddr = addr;
+    }
+};
+
+static int SetNoBlock( int &fd )
+{
+    int oldOpt = fcntl( fd, F_GETFL );
+    fcntl( fd, F_SETFL, oldOpt | O_NONBLOCK );
+    return oldOpt;
+}
+
 class Server {
 
 private:
     struct sockaddr_in servaddr;
     socklen_t servlen;
-    int sockfd;
     pthread_t pid;
     
+    static int sockfd;    
+    static struct pollfd *userSet;
+    static struct UserStruct *userMess;
+    static int curUserCnt;
+    static pthread_mutex_t lock;
+    
+    static void SetPollEvent( int fd, short status, int index,bool opt ); 
+    void PollEvent();
+    
+    void PollRevent();
+    void PollWevent();
+    void RemoveUser( int index );
+    
+    void CreatePthread( void*( void* ), void* arg );
+    void Bind( uint16_t );
+    void Listen();
+    static void *PthreadAccept( void* );
+    static void *PthreadRecvMess( void* );
+    static void *PthreadClearError( void* );
+    static void *PthreadBroadcast( void* );
+    
+    
+    //---暂时不涉及方法
     static void *handleClient( void *arg );
     static void registration( int, struct package& );
     static void login( int, struct package& );
@@ -60,15 +110,11 @@ private:
 public:
     Server( uint16_t );
     ~Server();
-    void Bind( uint16_t );
-    void Listen();
-    int Accept();
     void Run();
-    void CreatePthread( int  );
 
 };
 
 
-//void registration( int, struct package& );
-//void login();
+
+
 #endif // CHATROOM_H

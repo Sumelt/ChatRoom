@@ -8,17 +8,8 @@ using namespace std;
 
 int main()
 {
-    DataBase base;
-    base.Creatable();
-    //base.InsertValue();
-//    struct package mes;
-    base.Show();
-//    strcpy( mes.fromname, "xiaomin" );
-//    strcpy( mes.msg, "666" );
-//    mes.identity = 1;
-//    base.InsertValue( mes,99 );
-    base.DeleteValue( 1 );
-    base.Show();
+    Server serv( 6666 );
+    serv.Run();
 
     return 0;
 }
