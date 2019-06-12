@@ -2,7 +2,6 @@
  *服务器
  */
 #include <iostream>
-#include "database.h"
 #include "chatroom.h"
 using namespace std;
 

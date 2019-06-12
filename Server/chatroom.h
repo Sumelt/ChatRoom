@@ -52,23 +52,22 @@ private:
     struct sockaddr_in servaddr;
     socklen_t servlen;
        
-    static int sockfd;    
-    static struct pollfd *userSet;
-    static struct UserStruct *userMess;
-    static  nfds_t curUserCnt;
-    static pthread_mutex_t lock;
+    int sockfd;    
+    struct pollfd *userSet;
+    struct UserStruct *userMess;
+    int curUserCnt;
+    pthread_mutex_t lock;
     
-    static void SetPollEvent( int fd, short status, nfds_t index,bool opt ); 
-    static void *PthreadAccept( void* );
-    static void *PthreadRecvMess( void* );
-    static void *PthreadClearError( void* );
-    static void *PthreadBroadcast( void* );    
-    static void RemoveUser( int index );   
+    void SetPollEvent( int fd, short status, int index, bool opt ); 
+    void Accept( void* );
+    void RecvMess( int );
+    void ClearError( int );
+    void Broadcast( int );    
+    void RemoveUser( int index );   
     
     void Bind( uint16_t );
     void Listen();
-    void PollEvent();
-    
+    void PollEvent();   
     void CreatePthread( void*( void* ), void* arg );
     
 public:

@@ -2,12 +2,6 @@
 
 #include "chatroom.h"
 
-//类内静态变量声明
-int Server::sockfd;
-nfds_t Server::curUserCnt;
-pthread_mutex_t Server::lock;
-struct pollfd *Server::userSet;
-struct UserStruct *Server::userMess;
 
 
 Server::Server( uint16_t port ) {
@@ -58,7 +52,7 @@ void Server::Listen() {
     else cout << "Listen Ok" << endl;
 }
 
-void* Server::PthreadAccept( void *arg ) {
+void Server::Accept( void *arg ) {
     struct sockaddr_in cliaddr;
     socklen_t clilen = sizeof( cliaddr );
 
@@ -73,7 +67,6 @@ void* Server::PthreadAccept( void *arg ) {
         const char *str = "User reached the upper limit\n";
         send( connfd, str, strlen( str ), 0 );//线程发送消息后结束
         close( connfd );
-        pthread_exit ( nullptr );
     }
     
     string IP = string( inet_ntoa( cliaddr.sin_addr ) );
@@ -82,15 +75,13 @@ void* Server::PthreadAccept( void *arg ) {
     pthread_mutex_lock( &lock ); //线程加锁
     ++curUserCnt; //新增客户
     userMess[ curUserCnt ].copyAddress( cliaddr ); //服务器保存客户端地址
-    //SetNoBlock( connfd ); //设置非阻塞
+    SetNoBlock( connfd ); //设置非阻塞
     SetPollEvent( connfd, POLLIN | POLLRDHUP | POLLERR, curUserCnt, false );
     pthread_mutex_unlock( &lock ); //线程解锁
-    
-    pthread_exit ( nullptr ); //线程结束
 }
 
-void* Server::PthreadClearError( void *arg ) {
-    int index = *static_cast<int*>( arg );
+void Server::ClearError( int index ) {
+    
     cout << "Get An Error From Client: " << userSet[ index ].fd << endl;
     
     char errors[ 100 ];
@@ -100,45 +91,40 @@ void* Server::PthreadClearError( void *arg ) {
     //清除该套接字的错误
     if( getsockopt( userSet[ index ].fd, SOL_SOCKET, SO_ERROR, &errors, &length ) < 0 ) 
        cout << "Get Socket Option Fail" << endl;
-    
-    //pthread_exit( nullptr );
 }
 
-void* Server::PthreadRecvMess( void *arg ) {
-    
-    int *index = ( int* )arg;   
-    int connfd = userSet[ *index ].fd; //发送消息者
+void Server::RecvMess( int index ) {
+   
+    int connfd = userSet[ index ].fd; //发送消息者
     
     ssize_t byte = read( connfd, userMess[ connfd ].RecvMessage, MAXSIZE );
     if( byte < 0 && errno != EAGAIN  ) {
         perror( "PthreadRecvMess Faile" );
-        RemoveUser( *index );
+        RemoveUser( index );
         close( connfd );
     }
     else if( byte > 0 ){
         cout << "服务器收到一条从客户端发来的消息" << endl;
-        for ( nfds_t i = 1; i <= MAXUSERS; ++i ) {
+        for ( int i = 1; i <= curUserCnt; ++i ) {
             int toconnfd = userSet[ i ].fd; //要广播的用户
             if( connfd != toconnfd ) {
-                strcpy( userMess[ toconnfd ].SendMessage, userMess[ connfd ].RecvMessage );
+                strcpy( userMess[ toconnfd ].SendMessage, userMess[ connfd ].RecvMessage );              
                 SetPollEvent( toconnfd, POLLOUT, i, true );
             }
             else continue;
         }
+         memset( userMess[ connfd ].SendMessage, 0, MAXSIZE ); //清空发送区
     }
     else cout << "读到了0字节" << endl;
-    
-    //pthread_exit( nullptr );
 }
 
-void* Server::PthreadBroadcast( void *arg ) {
-    nfds_t index = *static_cast<nfds_t*>( arg );
+void Server::Broadcast( int index ) {
+    
     int connfd = userSet[ index ].fd; //发送消息者
     
-    send( connfd, userMess[ connfd ].SendMessage, MAXSIZE, 0 );
+    send( connfd, userMess[ connfd ].SendMessage, sizeof ( userMess[ connfd ].SendMessage ), 0 );
     SetPollEvent( connfd, POLLIN, index, true );
     memset( userMess[ connfd ].SendMessage, 0, MAXSIZE ); //清空发送区
-    pthread_exit( nullptr );
 }
 
 void Server::RemoveUser( int index ) {
@@ -161,7 +147,7 @@ void Server::CreatePthread( void *fnc( void* ), void* arg = nullptr ) {
     pthread_detach( pid ); // 线程分离
 }
 
-void Server::SetPollEvent( int fd, short status, nfds_t index = curUserCnt, bool opt = false ) {
+void Server::SetPollEvent( int fd, short status, int index, bool opt = false ) {
     //新增事件
     if( !opt ) {
         userSet[ index ].fd = fd; 
@@ -181,10 +167,10 @@ void Server::SetPollEvent( int fd, short status, nfds_t index = curUserCnt, bool
 void Server::PollEvent() {
     memset( userSet, 0, sizeof ( *userSet ) * MAXUSERS );
     //服务器事件加入
-    SetPollEvent( sockfd, POLLIN | POLLERR );
+    SetPollEvent( sockfd, POLLIN | POLLERR, curUserCnt );
        
     while ( true ) {
-        int ret = poll( userSet, curUserCnt + 1, -1 ); //堵塞
+        int ret = poll( userSet, ( nfds_t )( curUserCnt + 1), -1 ); //堵塞
         if( ret < 0 ) {
             perror( "Poll Faile" );
             break;
@@ -193,13 +179,12 @@ void Server::PollEvent() {
             //新连接请求
             if( ( userSet[ i ].fd == sockfd ) && ( userSet[ i ].revents & POLLIN ) ) {
                 userSet[ i ].revents = 0;
-                CreatePthread( PthreadAccept, nullptr );
-                //PthreadAccept( nullptr );
+                Accept( nullptr );
             }               
             //套接字出错
             else if( userSet[ i ].revents & POLLERR ) {
                 userSet[ i ].revents = 0;
-                PthreadClearError( &i );
+                ClearError( i );
             }
             //离开
            else if( userSet[ i ].revents & POLLRDHUP ) {
@@ -210,16 +195,12 @@ void Server::PollEvent() {
             //有消息读取
             else if( userSet[ i ].revents & POLLIN ) {
                 userSet[ i ].revents = 0;
-                //int tempIndex = i;
-                //CreatePthread( PthreadRecvMess, &tempIndex );
-                PthreadRecvMess( &i );
+                RecvMess( i );
             }              
            //发送广播
            else if( userSet[ i ].revents & POLLOUT ) {
                 userSet[ i ].revents = 0;
-                //int tempIndex = i;
-                //CreatePthread( PthreadBroadcast, &tempIndex );
-                PthreadBroadcast( &i );
+                Broadcast( i );
             }
         }
     }   
