@@ -8,7 +8,7 @@ using namespace std;
 
 int main()
 {
-    Server serv( 6666 );
+    Server serv( 5555 );
     serv.Run();
 
     return 0;

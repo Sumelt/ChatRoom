@@ -64,7 +64,7 @@ private:
     static int sockfd;    
     static struct pollfd *userSet;
     static struct UserStruct *userMess;
-    static int curUserCnt;
+    static  nfds_t curUserCnt;
     static pthread_mutex_t lock;
     static pthread_mutex_t lockCreat;
     

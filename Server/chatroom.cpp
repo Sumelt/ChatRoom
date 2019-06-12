@@ -3,7 +3,7 @@
 #include "chatroom.h"
 
 int Server::sockfd;
-int Server::curUserCnt;
+nfds_t Server::curUserCnt;
 struct pollfd *Server::userSet;
 struct UserStruct *Server::userMess;
 pthread_mutex_t Server::lock;
@@ -70,6 +70,7 @@ void* Server::PthreadAccept( void *arg ) {
     }
     //用户数达到上限不执行后续操作
     if( curUserCnt >= MAXUSERS ) {
+        cout << "用户数量达到上限拒绝连接" << endl;
         const char *str = "User reached the upper limit\n";
         send( connfd, str, strlen( str ), 0 );//线程发送消息后结束
         close( connfd );
@@ -86,12 +87,12 @@ void* Server::PthreadAccept( void *arg ) {
     SetPollEvent( connfd, POLLIN | POLLRDHUP | POLLERR, curUserCnt, false );
     pthread_mutex_unlock( &lock ); //线程解锁
     
-    pthread_exit ( nullptr ); //线程结束
+    //pthread_exit ( nullptr ); //线程结束
 }
 
 void* Server::PthreadClearError( void *arg ) {
     int index = *static_cast<int*>( arg );
-    cout << "Get an error from" << userSet[ index ].fd << endl;
+    cout << "Get An Error From Client: " << userSet[ index ].fd << endl;
     
     char errors[ 100 ];
     memset( errors, '\0', 100 );
@@ -99,17 +100,16 @@ void* Server::PthreadClearError( void *arg ) {
     
     //清除该套接字的错误
     if( getsockopt( userSet[ index ].fd, SOL_SOCKET, SO_ERROR, &errors, &length ) < 0 ) 
-       cout << "Get socket option failed" << endl;
+       cout << "Get Socket Option Fail" << endl;
     
-    pthread_exit( nullptr );
+    //pthread_exit( nullptr );
 }
 
 void* Server::PthreadRecvMess( void *arg ) {
-    int *index = ( int* )arg;
-    cout << "index: " << *index << endl;
-    cout << "count: " << curUserCnt << endl;
     
+    int *index = ( int* )arg;   
     int connfd = userSet[ *index ].fd; //发送消息者
+    
     ssize_t byte = read( connfd, userMess[ connfd ].RecvMessage, MAXSIZE );
     if( byte < 0 && errno != EAGAIN  ) {
         perror( "PthreadRecvMess Faile" );
@@ -117,7 +117,7 @@ void* Server::PthreadRecvMess( void *arg ) {
         close( connfd );
     }
     else if( byte > 0 ){
-        cout << "接收到一条消息" << endl;
+        cout << "服务器收到一条从客户端发来的消息" << endl;
         for ( int i = 1; i <= MAXUSERS; ++i ) {
             int toconnfd = userSet[ i ].fd; //要广播的用户
             if( connfd != toconnfd ) {
@@ -127,10 +127,9 @@ void* Server::PthreadRecvMess( void *arg ) {
             else continue;
         }
     }
-    else {
-        cout << "来到这" << endl;
-    }
-    pthread_exit( nullptr );
+    else cout << "读到了0字节" << endl;
+    
+    //pthread_exit( nullptr );
 }
 
 void* Server::PthreadBroadcast( void *arg ) {
@@ -139,15 +138,17 @@ void* Server::PthreadBroadcast( void *arg ) {
     
     send( connfd, userMess[ connfd ].SendMessage, MAXSIZE, 0 );
     SetPollEvent( connfd, POLLIN, index, true );
-    pthread_exit( nullptr );
+    memset( userMess[ connfd ].SendMessage, 0, MAXSIZE ); //清空发送区
+    //pthread_exit( nullptr );
 }
 
 void Server::RemoveUser( int index ) {
     
     int connfd = userSet[ index ].fd;
-    userMess[ connfd ] = userMess[ userSet[ curUserCnt ].fd ];
+    userMess[ connfd ] = userMess[ userSet[ curUserCnt ].fd ]; //最后一位用户数据覆盖
     close( connfd );
     --curUserCnt;
+    
     cout << "A Client Left" << endl;
 }
 
@@ -166,13 +167,14 @@ void Server::SetPollEvent( int fd, short status, int index = curUserCnt, bool op
     if( !opt ) {
         userSet[ index ].fd = fd; 
         userSet[ index ].events = status; //监听可读事件
+        userSet[ index ].revents = 0;
     }
     //修改事件
     else {
-        if( status & POLLIN )
+        if( status == POLLIN )
             userSet[ index ].events |= ~POLLOUT;
-        else if( status & POLLOUT )
-            userSet[ index ].events |= ~POLLIN;       
+        else if( status == POLLOUT )
+            userSet[ index ].events |= ~POLLIN;  
         userSet[ index ].events |= status;
     }
 }
@@ -185,41 +187,42 @@ void Server::PollEvent() {
     while ( true ) {
         int ret = poll( userSet, curUserCnt + 1, -1 ); //堵塞
         if( ret < 0 ) {
-            perror( "Poll faile" );
+            perror( "Poll Faile" );
             break;
         }
         for ( int i = 0 ; i <= MAXUSERS; ++i ) {
             //新连接请求
-            if( userSet[ i ].fd == sockfd && userSet[ i ].revents & POLLIN ) {
+            if( ( userSet[ i ].fd == sockfd ) && ( userSet[ i ].revents & POLLIN ) ) {
                 userSet[ i ].revents = 0;
-                CreatePthread( PthreadAccept );
+                //CreatePthread( PthreadAccept );
+                PthreadAccept( nullptr );
             }               
             //套接字出错
             else if( userSet[ i ].revents & POLLERR ) {
                 userSet[ i ].revents = 0;
-                int arg = i;
-                CreatePthread( PthreadClearError, &arg );
-            }
-            //有消息读取
-            else if( userSet[ i ].revents & POLLIN ) {
-                if( pthread_mutex_trylock( &lockCreat ) ) {
-                    userSet[ i ].revents = 0;
-                    cout << "收到一条消息" << endl;
-                    int arg = i;
-                    CreatePthread( PthreadRecvMess, &arg );
-                    pthread_mutex_unlock( &lockCreat );
-                }                    
+                //int arg = i;
+                //CreatePthread( PthreadClearError, &arg );
+                PthreadClearError( &i );
             }
             //离开
            else if( userSet[ i ].revents & POLLRDHUP ) {
                 userSet[ i ].revents = 0;
                 RemoveUser( i );
-            }               
+                --i;
+            }             
+            //有消息读取
+            else if( userSet[ i ].revents & POLLIN ) {
+                userSet[ i ].revents = 0;                   
+                //int arg = i;
+                //CreatePthread( PthreadRecvMess, &arg );
+                PthreadRecvMess( &i );
+            }              
            //发送广播
            else if( userSet[ i ].revents & POLLOUT ) {
                 userSet[ i ].revents = 0;
-                int arg = i;
-                CreatePthread( PthreadBroadcast, &arg );
+                //int arg = i;
+                //CreatePthread( PthreadBroadcast, &arg );
+                PthreadBroadcast( &i );
             }
         }
     }   
