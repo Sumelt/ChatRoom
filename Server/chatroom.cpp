@@ -2,21 +2,20 @@
 
 #include "chatroom.h"
 
+//类内静态变量声明
 int Server::sockfd;
 nfds_t Server::curUserCnt;
+pthread_mutex_t Server::lock;
 struct pollfd *Server::userSet;
 struct UserStruct *Server::userMess;
-pthread_mutex_t Server::lock;
-pthread_mutex_t Server::lockCreat;
+
 
 Server::Server( uint16_t port ) {
     memset( &servaddr, 0, sizeof( servaddr ) );
     Server::curUserCnt = 0;
     servlen = sizeof( servaddr );
     
-    pthread_mutex_init( &lock, nullptr ); //初始化线程锁
-    pthread_mutex_init( &lockCreat, nullptr ); //初始化线程锁
-    
+    pthread_mutex_init( &lock, nullptr ); //初始化线程锁    
     userMess = new UserStruct[ MAXFD ] (); //创建用户的数据结构
     userSet = new pollfd[ MAXUSERS + 1 ] (); //用户的事件集合
     
@@ -129,7 +128,7 @@ void* Server::PthreadRecvMess( void *arg ) {
     }
     else cout << "读到了0字节" << endl;
     
-    pthread_exit( nullptr );
+    //pthread_exit( nullptr );
 }
 
 void* Server::PthreadBroadcast( void *arg ) {
@@ -211,9 +210,9 @@ void Server::PollEvent() {
             //有消息读取
             else if( userSet[ i ].revents & POLLIN ) {
                 userSet[ i ].revents = 0;
-                int tempIndex = i;
-                CreatePthread( PthreadRecvMess, &tempIndex );
-                //PthreadRecvMess( &i );
+                //int tempIndex = i;
+                //CreatePthread( PthreadRecvMess, &tempIndex );
+                PthreadRecvMess( &i );
             }              
            //发送广播
            else if( userSet[ i ].revents & POLLOUT ) {
@@ -230,124 +229,4 @@ void Server::Run() {
     PollEvent();
 }
 
-/*
-void* Server::handleClient( void *arg ) {
-    int *clientSock = static_cast<int*>(arg);
-    struct package message;
-    
-    while ( true ) {
-        int ret = read( *clientSock, &message, sizeof ( message ) );
-        if( ret == -1 ) {
-            perror( "read message " );
-            break;
-        }
-        else if( ret == 0 ) {
-            cout << "客户端申请退出" << endl;
-            break;
-        }
-        else {
-            //客户端的操作
-            switch ( message.cmd ) {
-                case 1 :
-                    registration( *clientSock, message ); //注册
-                    break;
-                    
-                case 2 :
-                    login( *clientSock, message ); //登录
-                    break;                
-            }
-        }
-    }
-    close( *clientSock );
-}
-*/
 
-/*
-void Server::UserTodo( int clientSock ) {
-    struct package message;
-    ssize_t ret;
-    while ( true ) {
-        ret = read( clientSock, &message, sizeof ( message ) );
-        if( ret == -1 ) {
-            perror( "读取用户报文操作失败" );
-            return;
-        }
-        else if( ret == 0 ) {
-            cout << "用户返回登录界面" << endl;
-            break;
-        }
-        switch ( message.cmd ) {
-            case 10 : 
-                QuitChatroom( clientSock, message );
-                break;
-            
-            case 1 :
-                Display();
-                break;
-                
-            case 2 :
-                GroupChat();
-                break;
-                
-            case 3 :
-                PrivateChat();
-                break;
-                
-            case 5 :
-                ConveyFile();
-                break;
-                
-            case 6 :
-                ChangePassWord();
-                break;
-                
-            case 8 :
-                DeleteUser();
-                break;
-                
-            case 9005 :
-                RefuseFile();
-                break;
-                
-            case 9006 :
-                AcceptFile();
-                break;
-                
-            case 9007 :
-                ConveyFileChose();
-                break;
-                
-            case 9008:
-                ConveyFileComplete();
-                break;
-                
-            case 9011:
-                Silent();
-                break;
-            case 9012:
-                RemoveSilent();
-                break;
-                
-            case 9013:
-                KickOut();
-                break;      
-        }
-    }
-}
-*/
-
-/*
-void Server::registration( int clientSock, struct package &message ) {
-    cout << message.fromname << " 请求注册" << endl;
-    DataBase database;
-    database.InsertValue( message, clientSock );
-}
-
-void Server::login( int clientSock, struct package &message ) {
-    cout << message.fromname << " 请求登录" << endl;
-    DataBase database;
-    if( database.LoginCheck( clientSock, message ) ) {
-        
-    }
-}
-*/

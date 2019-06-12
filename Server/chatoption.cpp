@@ -3,6 +3,132 @@
  * 
  */ 
 #include "chatroom.h"
+
+/**以下代码涉及繁杂的业务逻辑，暂时不给予考虑***/
+
+/*
+void* Server::handleClient( void *arg ) {
+    int *clientSock = static_cast<int*>(arg);
+    struct package message;
+    
+    while ( true ) {
+        int ret = read( *clientSock, &message, sizeof ( message ) );
+        if( ret == -1 ) {
+            perror( "read message " );
+            break;
+        }
+        else if( ret == 0 ) {
+            cout << "客户端申请退出" << endl;
+            break;
+        }
+        else {
+            //客户端的操作
+            switch ( message.cmd ) {
+                case 1 :
+                    registration( *clientSock, message ); //注册
+                    break;
+                    
+                case 2 :
+                    login( *clientSock, message ); //登录
+                    break;                
+            }
+        }
+    }
+    close( *clientSock );
+}
+*/
+
+/*
+void Server::UserTodo( int clientSock ) {
+    struct package message;
+    ssize_t ret;
+    while ( true ) {
+        ret = read( clientSock, &message, sizeof ( message ) );
+        if( ret == -1 ) {
+            perror( "读取用户报文操作失败" );
+            return;
+        }
+        else if( ret == 0 ) {
+            cout << "用户返回登录界面" << endl;
+            break;
+        }
+        switch ( message.cmd ) {
+            case 10 : 
+                QuitChatroom( clientSock, message );
+                break;
+            
+            case 1 :
+                Display();
+                break;
+                
+            case 2 :
+                GroupChat();
+                break;
+                
+            case 3 :
+                PrivateChat();
+                break;
+                
+            case 5 :
+                ConveyFile();
+                break;
+                
+            case 6 :
+                ChangePassWord();
+                break;
+                
+            case 8 :
+                DeleteUser();
+                break;
+                
+            case 9005 :
+                RefuseFile();
+                break;
+                
+            case 9006 :
+                AcceptFile();
+                break;
+                
+            case 9007 :
+                ConveyFileChose();
+                break;
+                
+            case 9008:
+                ConveyFileComplete();
+                break;
+                
+            case 9011:
+                Silent();
+                break;
+            case 9012:
+                RemoveSilent();
+                break;
+                
+            case 9013:
+                KickOut();
+                break;      
+        }
+    }
+}
+*/
+
+/*
+void Server::registration( int clientSock, struct package &message ) {
+    cout << message.fromname << " 请求注册" << endl;
+    DataBase database;
+    database.InsertValue( message, clientSock );
+}
+
+void Server::login( int clientSock, struct package &message ) {
+    cout << message.fromname << " 请求登录" << endl;
+    DataBase database;
+    if( database.LoginCheck( clientSock, message ) ) {
+        
+    }
+}
+*/
+
+
 /*
 void Server::QuitChatroom( int clientSock, struct package &message ) {
     cout << message.fromname << " 申请退出聊天室" << endl;
@@ -49,3 +175,39 @@ void Server::ChangePassWord( int clientSock, struct package &message ) {
 */
 
 
+
+
+/*
+//---暂时不涉及方法
+static void *handleClient( void *arg );
+static void registration( int, struct package& );
+static void login( int, struct package& );
+
+static void UserTodo( int );
+static void QuitChatroom( int, struct package& );
+static void Display( int );
+static void GroupChat();
+static void PrivateChat();
+static void ConveyFile();
+static void AcceptFile();
+static void ConveyFileChose();
+static void ConveyFileComplete();
+static void RefuseFile();
+static void ChangePassWord( int, struct package& );
+static void DeleteUser();
+static void Silent();
+static void RemoveSilent();
+static void KickOut();
+*/
+
+/*
+struct package {
+    unsigned int ID;         //账号ＩＤ
+    char msg[1024];         // 消息内容
+    int  cmd;               // 消息类型
+    char filename[50];      // 保存文件名
+    char toname[20];        // 接收者姓名
+    char fromname[20];      // 发送者姓名
+    int  identity;          // 用户状态（0：管理员、1：普通用户、2：被禁言）
+};
+*/

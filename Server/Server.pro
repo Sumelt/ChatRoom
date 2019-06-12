@@ -6,10 +6,7 @@ LIBS += -lmysqlcppconn
 LIBS += -pthread
 SOURCES += \
         main.cpp \
-    database.cpp \
-    chatroom.cpp \
-    chatoption.cpp
+    chatroom.cpp
 
 HEADERS += \
-    database.h \
     chatroom.h

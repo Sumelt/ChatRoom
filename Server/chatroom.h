@@ -20,19 +20,9 @@
 #include "database.h"
 using namespace std;
 
-const int MAXSIZE = 1024;
-const int MAXUSERS = 5;
-const int MAXFD = 65535;
-
-struct package {
-    unsigned int ID;         //账号ＩＤ
-    char msg[1024];         // 消息内容
-    int  cmd;               // 消息类型
-    char filename[50];      // 保存文件名
-    char toname[20];        // 接收者姓名
-    char fromname[20];      // 发送者姓名
-    int  identity;          // 用户状态（0：管理员、1：普通用户、2：被禁言）
-};
+const int MAXSIZE = 1024; //缓冲区最大的字节数
+const int MAXUSERS = 5; //最大数量的用户
+const int MAXFD = 65535; 
 
 struct UserStruct {
     struct sockaddr_in servaddr;
@@ -49,6 +39,7 @@ struct UserStruct {
     }
 };
 
+//设置不阻塞
 static int SetNoBlock( int &fd ) {
     int oldOpt = fcntl( fd, F_GETFL );
     fcntl( fd, F_SETFL, oldOpt | O_NONBLOCK );
@@ -66,45 +57,20 @@ private:
     static struct UserStruct *userMess;
     static  nfds_t curUserCnt;
     static pthread_mutex_t lock;
-    static pthread_mutex_t lockCreat;
     
     static void SetPollEvent( int fd, short status, nfds_t index,bool opt ); 
-    static void RemoveUser( int index );
-
     static void *PthreadAccept( void* );
     static void *PthreadRecvMess( void* );
     static void *PthreadClearError( void* );
     static void *PthreadBroadcast( void* );    
-       
-    void CreatePthread( void*( void* ), void* arg );
+    static void RemoveUser( int index );   
+    
     void Bind( uint16_t );
     void Listen();
     void PollEvent();
-
     
-    /*
-    //---暂时不涉及方法
-    static void *handleClient( void *arg );
-    static void registration( int, struct package& );
-    static void login( int, struct package& );
+    void CreatePthread( void*( void* ), void* arg );
     
-    static void UserTodo( int );
-    static void QuitChatroom( int, struct package& );
-    static void Display( int );
-    static void GroupChat();
-    static void PrivateChat();
-    static void ConveyFile();
-    static void AcceptFile();
-    static void ConveyFileChose();
-    static void ConveyFileComplete();
-    static void RefuseFile();
-    static void ChangePassWord( int, struct package& );
-    static void DeleteUser();
-    static void Silent();
-    static void RemoveSilent();
-    static void KickOut();
-    */
-
 public:
     Server( uint16_t );
     ~Server();
