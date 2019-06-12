@@ -3,7 +3,7 @@
  * 
  */ 
 #include "chatroom.h"
-
+/*
 void Server::QuitChatroom( int clientSock, struct package &message ) {
     cout << message.fromname << " 申请退出聊天室" << endl;
     DataBase database;
@@ -46,6 +46,6 @@ void Server::ChangePassWord( int clientSock, struct package &message ) {
     }
 
 } 
-
+*/
 
 

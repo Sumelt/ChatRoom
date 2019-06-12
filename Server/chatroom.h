@@ -21,7 +21,7 @@
 using namespace std;
 
 const int MAXSIZE = 1024;
-const int MAXUSERS = 10;
+const int MAXUSERS = 5;
 const int MAXFD = 65535;
 
 struct package {
@@ -49,8 +49,7 @@ struct UserStruct {
     }
 };
 
-static int SetNoBlock( int &fd )
-{
+static int SetNoBlock( int &fd ) {
     int oldOpt = fcntl( fd, F_GETFL );
     fcntl( fd, F_SETFL, oldOpt | O_NONBLOCK );
     return oldOpt;
@@ -61,30 +60,29 @@ class Server {
 private:
     struct sockaddr_in servaddr;
     socklen_t servlen;
-    pthread_t pid;
-    
+       
     static int sockfd;    
     static struct pollfd *userSet;
     static struct UserStruct *userMess;
     static int curUserCnt;
     static pthread_mutex_t lock;
+    static pthread_mutex_t lockCreat;
     
     static void SetPollEvent( int fd, short status, int index,bool opt ); 
-    void PollEvent();
-    
-    void PollRevent();
-    void PollWevent();
-    void RemoveUser( int index );
-    
-    void CreatePthread( void*( void* ), void* arg );
-    void Bind( uint16_t );
-    void Listen();
+    static void RemoveUser( int index );
+
     static void *PthreadAccept( void* );
     static void *PthreadRecvMess( void* );
     static void *PthreadClearError( void* );
-    static void *PthreadBroadcast( void* );
+    static void *PthreadBroadcast( void* );    
+       
+    void CreatePthread( void*( void* ), void* arg );
+    void Bind( uint16_t );
+    void Listen();
+    void PollEvent();
+
     
-    
+    /*
     //---暂时不涉及方法
     static void *handleClient( void *arg );
     static void registration( int, struct package& );
@@ -105,7 +103,7 @@ private:
     static void Silent();
     static void RemoveSilent();
     static void KickOut();
-    
+    */
 
 public:
     Server( uint16_t );
