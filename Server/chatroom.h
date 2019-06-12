@@ -68,7 +68,7 @@ private:
     static pthread_mutex_t lock;
     static pthread_mutex_t lockCreat;
     
-    static void SetPollEvent( int fd, short status, int index,bool opt ); 
+    static void SetPollEvent( int fd, short status, nfds_t index,bool opt ); 
     static void RemoveUser( int index );
 
     static void *PthreadAccept( void* );
