@@ -98,13 +98,14 @@ void Server::RecvMess( int index ) {
     int connfd = userSet[ index ].fd; //发送消息者
     
     ssize_t byte = read( connfd, userMess[ connfd ].RecvMessage, MAXSIZE );
+    userMess[ connfd ].RecvMessage[ byte ] = '\0';
     if( byte < 0 && errno != EAGAIN  ) {
         perror( "PthreadRecvMess Faile" );
         RemoveUser( index );
         close( connfd );
     }
     else if( byte > 0 ){
-        cout << "服务器收到一条从客户端发来的消息" << endl;
+        cout << "服务器接受到: " << byte << "字节" << endl;
         for ( int i = 1; i <= curUserCnt; ++i ) {
             int toconnfd = userSet[ i ].fd; //要广播的用户
             if( connfd != toconnfd ) {
@@ -190,7 +191,6 @@ void Server::PollEvent() {
            else if( userSet[ i ].revents & POLLRDHUP ) {
                 userSet[ i ].revents = 0;
                 RemoveUser( i );
-                --i;
             }             
             //有消息读取
             else if( userSet[ i ].revents & POLLIN ) {
