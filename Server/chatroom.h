@@ -17,7 +17,6 @@
 #include <poll.h>
 #include <fcntl.h>
 
-#include "database.h"
 using namespace std;
 
 const int MAXSIZE = 1024; //缓冲区最大的字节数
