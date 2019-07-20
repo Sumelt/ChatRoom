@@ -13,9 +13,10 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <errno.h>
-#include <pthread.h>
-#include <poll.h>
 #include <fcntl.h>
+#include <sys/epoll.h>
+
+#include <list>
 
 using namespace std;
 
@@ -24,50 +25,45 @@ const int MAXUSERS = 5; //最大数量的用户
 const int MAXFD = 65535; 
 
 struct UserStruct {
-    struct sockaddr_in servaddr;
-    char SendMessage[ MAXSIZE];
-    char RecvMessage[ MAXSIZE ];
+    struct sockaddr_in save_addr; //客户机的地址信息
+    int sockfd;//客户机的套接字
+    char SendMessage[ MAXSIZE];//客户机要发送的消息
+    char RecvMessage[ MAXSIZE ];//客户机接受的消息
     
-    UserStruct() {
-        memset( &servaddr, 0, sizeof ( servaddr ) );
-        memset( SendMessage, 0, MAXSIZE );
-        memset( RecvMessage, 0, MAXSIZE );
-    }
-    void copyAddress( struct sockaddr_in &addr ) {
-        servaddr = addr;
+    UserStruct() : sockfd( 0 ) {
+        bzero( &save_addr, sizeof ( save_addr ) );
+        bzero( SendMessage, sizeof ( SendMessage ) );
+        bzero( &RecvMessage, sizeof ( RecvMessage ) );
     }
 };
 
 //设置不阻塞
-static int SetNoBlock( int &fd ) {
-    int oldOpt = fcntl( fd, F_GETFL );
-    fcntl( fd, F_SETFL, oldOpt | O_NONBLOCK );
-    return oldOpt;
-}
+int Setnoblock( int &fd );
 
 class Server {
 
 private:
-    struct sockaddr_in servaddr;
+    struct sockaddr_in servaddr;//服务器信息
+    struct epoll_event ep_ctl;//epoll event结构体
+    struct UserStruct *OnlineUsers;//当前在线的用户
+    list<int>que; //当前在线用户的fd
     socklen_t servlen;
        
-    int sockfd;    
-    struct pollfd *userSet;
-    struct UserStruct *userMess;
+    int sockfd, ep_fd;
     int curUserCnt;
-    pthread_mutex_t lock;
     
-    void SetPollEvent( int fd, short status, int index, bool opt ); 
-    void Accept( void* );
+    void SetEpollEvent( int fd, int op, uint32_t status );
+
     void RecvMess( int );
-    void ClearError( int );
-    void Broadcast( int );    
+    void Broadcast( int );   
+    void ClearError( int );    
     void RemoveUser( int index );   
-    
+
+    void Accept( void* );    
     void Bind( uint16_t );
     void Listen();
-    void PollEvent();   
-    void CreatePthread( void*( void* ), void* arg );
+    
+    void Event();   
     
 public:
     Server( uint16_t );

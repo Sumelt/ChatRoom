@@ -5,9 +5,11 @@
 #include "chatroom.h"
 using namespace std;
 
+static uint16_t myPort = 6666;
+
 int main()
 {
-    Server serv( 5555 );
+    Server serv( myPort );
     serv.Run();
 
     return 0;
