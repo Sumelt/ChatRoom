@@ -9,6 +9,12 @@ int Setnoblock( int &fd ) {
     return oldOpt;
 }
 
+int Setblock( int &fd ) {
+    int oldOpt = fcntl( fd, F_GETFL );
+    fcntl( fd, F_SETFL, oldOpt ^ O_NONBLOCK );
+    return oldOpt;    
+}
+
 Server::Server( uint16_t port ) {
 
     memset( &servaddr, 0, sizeof( servaddr ) );
@@ -23,8 +29,12 @@ Server::Server( uint16_t port ) {
         exit( EXIT_FAILURE );
     }
     else cout << "Socket Creat OK" << endl;
-
+    
+    int opt = 1;
+    setsockopt( sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof( opt ) );//端口复用
+    
     Bind( port );
+
     cout << "服务器已就绪，等待客户端连接......." << endl;
 }
 
@@ -39,8 +49,8 @@ void Server::Bind( uint16_t port) {
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons( port );
     servaddr.sin_addr.s_addr = htonl( INADDR_ANY );//绑定地址
-    
-    ret = bind( sockfd, ( struct sockaddr* )&servaddr, servlen );
+
+    ret = bind( sockfd, reinterpret_cast<sockaddr*>( &servaddr ), servlen );
     if( ret != 0 ) {
         perror( "Bind Faile" );
         exit( EXIT_FAILURE );
@@ -62,10 +72,11 @@ void Server::Listen() {
 void Server::Accept( void *arg ) {
     struct sockaddr_in cliaddr;
     socklen_t clilen = sizeof( cliaddr );
-
-    int connfd = accept( sockfd, ( struct sockaddr* )&cliaddr, &clilen );
+    
+    int connfd = accept( sockfd, reinterpret_cast<sockaddr*>( &cliaddr ), &clilen );
     if( connfd == -1 )
         perror( "Accept a new client faile" );
+    
     //用户数达到上限不执行后续操作
     else if( curUserCnt >= MAXUSERS ) {
         cout << "用户数量达到上限拒绝连接" << endl;
@@ -79,38 +90,48 @@ void Server::Accept( void *arg ) {
         
         ++curUserCnt; //新增客户
         OnlineUsers[ connfd ].save_addr = cliaddr; //服务器保存客户端地址
-        OnlineUsers[ connfd ].sockfd = connfd;
-        que.push_front( connfd );
-        Setnoblock( connfd ); //设置非阻塞
+        OnlineUsers[ connfd ].sockfd = connfd;//保存套接字
+        heartReord[ connfd ] = make_pair( IP, 0 );//心跳结构维护
+        que.push_front( connfd );//加入在线队列
+        Setnoblock( connfd ); //该套接字设置非阻塞
         SetEpollEvent( connfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET ); //开启ET模式
     }
 }
 
 void Server::RecvMess( int connfd ) {
    
-    ssize_t byte = read( connfd, OnlineUsers[ connfd ].RecvMessage, MAXSIZE );
-    OnlineUsers[ connfd ].RecvMessage[ byte ] = '\0';
-    char *ptr = OnlineUsers[ connfd ].RecvMessage;
+    package mess;
+    ssize_t byte = read( connfd, &mess, sizeof ( package ) );
+    
+    //客户机离开
     if( byte <= 0 && errno != EAGAIN  ) {
         SetEpollEvent( connfd, EPOLL_CTL_DEL, 0 );       
-        RemoveUser( connfd );
+        //RemoveUser( connfd );
+        return;
     }
-    else if( byte > 0 ){
-        cout << "服务器接受到: " << byte << "字节" << endl;
-        for ( auto iter = que.begin(); iter != que.end(); ++iter ) {
-            if( *iter != connfd ) {
-                SetEpollEvent( *iter, EPOLL_CTL_MOD, EPOLLOUT );
-                strcpy( OnlineUsers[ *iter ].SendMessage, ptr );
-            }
+    else if( byte > 0 ) {
+        //不是心跳包则正常处理
+        if( mess.type != HEART ) {           
+            heartReord[ connfd ].second = 0;//对该用户心跳记录清零
+            char *ptr = mess.RecvMessage;
+            cout << "服务器接受到: " << byte << "字节" << endl;
+            for ( auto iter = que.begin(); iter != que.end(); ++iter ) {
+                if( *iter != connfd ) {
+                    SetEpollEvent( *iter, EPOLL_CTL_MOD, EPOLLOUT );
+                    strcpy( OnlineUsers[ *iter ].SendMessage, ptr );
+                }
+            }       
         }
-        memset( OnlineUsers[ connfd ].SendMessage, 0, MAXSIZE ); //清空发送区        
+        else {
+            cout << "服务器接受到一个心跳包" << endl;
+            heartReord[ connfd ].second = 0;
+        }           
     }
-    else cout << "读到了0字节" << endl;
 }
 
-void Server::Broadcast( int fd ) {
-    
-    send( fd, OnlineUsers[ fd ].SendMessage, MAXSIZE, 0 );
+void Server::Broadcast( int fd ) {  
+    package mess( OnlineUsers[ fd ].SendMessage ); //广播构建消息包体
+    send( fd, &mess, MAXSIZE, 0 );
     SetEpollEvent( fd, EPOLL_CTL_MOD, EPOLLIN );
     memset( OnlineUsers[ fd ].SendMessage, 0, MAXSIZE ); //清空发送区
 }
@@ -120,7 +141,8 @@ void Server::RemoveUser( int fd ) {
     --curUserCnt;
     close( fd );
     que.remove( fd );
-    cout << "A Client Left" << endl;
+    SetEpollEvent( fd, EPOLL_CTL_DEL, EPOLLIN );
+    cout << "A client left" << endl;
 }
 
 void Server::SetEpollEvent( int fd, int op, uint32_t status ) {
@@ -138,8 +160,8 @@ void Server::Event() {
        
     while ( true ) {
         int cnt = epoll_wait( ep_fd, ep_wait, MAXUSERS + 1, -1 ); //堵塞
-        if( cnt < 0 ) {
-            perror( "Poll Faile" );
+        if( cnt < 0 && errno != EINTR ) {
+            perror( "epoll Faile" );
             break;
         }        
         for ( int i = 0; i < cnt ; ++i ) {
@@ -158,7 +180,37 @@ void Server::Event() {
 
 void Server::Run() {
     this->ep_fd = epoll_create( MAXUSERS + 1 );
+    pthread_t pid;
+    //创建心跳线程
+    if( pthread_create( &pid, nullptr, heartHeadle, reinterpret_cast<void*>( this ) ) != 0 ) {
+        perror( "pthread create faile" );
+        exit( EXIT_FAILURE );
+    }
+    //线程分离
+    if( pthread_detach( pid ) != 0 ) {
+        perror( "pthread detach faile" );
+        exit( EXIT_FAILURE );        
+    }
     Event();
+}
+
+void *heartHeadle( void *arg ) {
+    Server* sPoint = reinterpret_cast<Server*>( arg );
+    cout << "The heartbeat checking thread started" << endl;
+    
+    while ( true ) {
+        auto iter = sPoint->heartReord.begin();
+        for ( ; iter != sPoint->heartReord.end(); ++iter ) {
+            if( iter->second.second == 5 ) {
+                cout << "存在用户心跳超时" << endl;
+                close( iter->first );
+                sPoint->heartReord.erase( iter );
+                sPoint->RemoveUser( iter->first );
+            }
+            else ++iter->second.second;
+        }
+        sleep( 60 );
+    }
 }
 
 
