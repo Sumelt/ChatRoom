@@ -2,6 +2,9 @@ TEMPLATE = app
 CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
-
+LIBS += -pthread
 SOURCES += \
-        main.cpp
+        main.cpp \
+        chat.cpp
+HEADERS += \
+    chat.h

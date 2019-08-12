@@ -22,7 +22,7 @@
 using namespace std;
 
 const int MAXSIZE = 1024; //缓冲区最大的字节数
-const int MAXUSERS = 5; //最大数量的用户
+const int MAXUSERS = 100; //最大数量的用户
 const int MAXFD = 65535; 
 
 //自定义的消息包体
